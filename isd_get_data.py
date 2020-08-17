@@ -159,16 +159,7 @@ class GetIsdData:
         base_data['visibility'][(base_data['visibility'] > 9001) & (base_data['visibility'] < 999998)] = 10000
         base_data['visibility'][base_data['visibility'] == 999999] = 10000
 
-        # Wx
-        # A csv file with all phenomenon codes was created using the ISD manual
-        # Then they were put in a dict and then replaced in the rows
-        codes = pd.read_csv('./data/wx_codes.csv', sep=';', index_col='Code')
-        codes.index = codes.index.map("{:02}".format)
-        codes_dict = codes['Phenomenon'].to_dict()
-        phenomena = base_data.filter(like='phenomenon').fillna('00').astype(int).astype(str).replace('0', 'None')
-        base_data[phenomena.columns] = phenomena.replace(codes_dict)
-
-        # Ceiling
+       # Ceiling
         # According to the manual, ceiling regarded as 99999 means it's missing (from the METAR)
         # and 22000 means unlimited...
         # BUT... "ceiling values above 1600m (5000ft) are not considered ceiling" Lets just make them NaN...
@@ -223,6 +214,7 @@ class GetIsdData:
 
         # Broad view of the data
         # print(base_data.describe())
+
 
         # Dropping unused columns
         base_data = base_data.drop(['REM', 'cavok'], axis=1).round(0)

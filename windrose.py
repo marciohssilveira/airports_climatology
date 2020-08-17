@@ -17,9 +17,9 @@ def speed_labels(bins, units):
         if left == bins[0]:
             labels.append('calm'.format(right))
         elif np.isinf(right):
-            labels.append('>{} {}'.format(left, units))
+            labels.append(f'>{left} {units}')
         else:
-            labels.append('{} - {} {}'.format(left, right, units))
+            labels.append(f'{left} - {right} {units}')
 
     return labels
 
@@ -76,7 +76,7 @@ def create_rosedata(data):
         .fillna(0)
         .assign(calm=lambda df: calm_count / df.shape[0])
         .sort_index(axis=1)
-        .applymap(lambda x: x / total_count)
+        .applymap(lambda x: x / total_count * 100)
     )
     directions = np.arange(0, 360, 15)
     for i in directions:
@@ -94,7 +94,7 @@ def wind_rose(rosedata, directions, palette=None):
 
     bar_dir, bar_width = _convert_dir(directions)
 
-    fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(polar=True))
+    fig, ax = plt.subplots(figsize=(10, 8), subplot_kw=dict(polar=True))
     ax.set_theta_direction('clockwise')
     ax.set_theta_zero_location('N')
 
@@ -152,7 +152,7 @@ for i in range(len(files)):
     fig = wind_rose(rose_data, directions)
     plt.suptitle(f'Rosa dos ventos de {airport_name} com dados de 2011 a 2019')
     Path(f'{img_path}/{airport_name}').mkdir(parents=True, exist_ok=True)
-    filename = f'{img_path}/{airport_name}/{airport_name}_2011-2019.png'
+    filename = f'{img_path}/{airport_name}/00_{airport_name}_2011-2019.png'
     if not os.path.exists(filename):
         plt.savefig(filename)
 
@@ -175,6 +175,27 @@ for month_number, month_name in year.items():
         fig = wind_rose(rose_data, directions)
         plt.suptitle(f'Rosa dos ventos de {airport_name} com dados de 2011 a 2019 \n {month_name.upper()}')
         Path(f'{img_path}/{airport_name}').mkdir(parents=True, exist_ok=True)
-        filename = f'{img_path}/{airport_name}/{airport_name}_2011-2019_{month_name}.png'
+        filename = f'{img_path}/{airport_name}/{month_number:02}_{airport_name}_2011-2019_{month_name}.png'
+        if not os.path.exists(filename):
+            plt.savefig(filename)
+
+
+# Create the windrose for each time of the day
+for hour in range(1, 24, 1):
+    for i in range(len(files)):
+        # Read into a Pandas dataframe all the i files inside the defined PATH
+        airport = pd.read_csv(f'{ready_data_path}/{files[i]}')
+        # Filter the specific month given the year dict
+        airport.index = pd.to_datetime(airport['DATE'])
+        airport = airport[airport.index.hour.isin([hour])]
+        # Determine the relative percentage of observation in each speed and direction bin
+        directions = np.arange(0, 360, 15)
+        airport_name = f'{files[i].split("_")[0]}'
+        print(f'Creating {hour} UTC windrose for {airport_name}')
+        rose_data = create_rosedata(airport)
+        fig = wind_rose(rose_data, directions)
+        plt.suptitle(f'Rosa dos ventos de {airport_name} com dados de 2011 a 2019 \n {hour:02} UTC')
+        Path(f'{img_path}/{airport_name}').mkdir(parents=True, exist_ok=True)
+        filename = f'{img_path}/{airport_name}/{airport_name}_2011-2019_{hour:02} UTC.png'
         if not os.path.exists(filename):
             plt.savefig(filename)
