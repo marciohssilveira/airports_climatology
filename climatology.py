@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import seaborn as sns
 from pathlib import Path
 import warnings
@@ -9,105 +10,50 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def fix_wx_names(data, wx_codes_path):
-    # Wx
-    # A csv file with all phenomenon codes was created using the ISD manual
-    # Then they were put in a dict and then replaced in the rows
-    codes = pd.read_csv(wx_codes_path, sep=';', index_col=False)
-    codes_dict = codes['Phenomenon'].to_dict()
-    phenomena = data.filter(like='phenomenon').fillna(0)
-    data[phenomena.columns] = phenomena.replace(codes_dict)
-    return data
+class Climatology:
 
+    def __init__(self):
+        self.wx_codes_path = './data/input/wx_codes.csv'
 
-# Reading files into a Pandas Data Frame
-airport = 'SBBR'
-data = pd.read_csv(f'./data/isd/ready/{airport}_isd_data.csv', index_col='DATE')
+    def fix_wx_names(self, data):
+        # Wx
+        # A csv file with all phenomenon codes was created using the ISD manual
+        # Then they were put in a dict and then replaced in the rows
+        codes = pd.read_csv(self.wx_codes_path, sep=';', index_col=False)
+        codes_dict = codes['Phenomenon'].to_dict()
+        phenomena = data.filter(like='phenomenon').fillna(0)
+        data[phenomena.columns] = phenomena.replace(codes_dict)
+        return data
 
-# Appying a function to fix wx codes
-wx_codes_path = './data/input/wx_codes.csv'
-data = fix_wx_names(data, wx_codes_path)
-
-
-# Filter CAVOK data
-cavok = data['phenomenon_1'].isin(['CAVOK'])
-data = data.loc[~cavok]
-
-# Plot countplot
-sns.countplot(data=data, x='phenomenon_1')
-plt.show()
-
-# Create functions for temperature, humidity, phenomena, etc.
-
-
-
-
-# Use it
-ready_data_path = './data/isd/ready'
-img_path = './data/output'
-files = []
-for file in os.listdir(ready_data_path):
-    if not file.startswith('.'):
-        files.append(file)
-
-files = sorted(files)
-
-# Create the windroses for the entire period of the data
-for i in range(len(files)):
-    # Read into a Pandas dataframe all the i files inside the defined PATH
-    airport = pd.read_csv(f'{ready_data_path}/{files[i]}')
-    # Determine the relative percentage of observation in each speed and direction bin
-    directions = np.arange(0, 360, 15)
-    airport_name = f'{files[i].split("_")[0]}'
-    print(f'Creating windrose for {airport_name}')
-    rose_data = create_rosedata(airport)  # <------------------ PUT NEW FUNCTIONS HERE
-    fig = wind_rose(rose_data, directions)   # <------------------ PUT NEW FUNCTIONS HERE
-    plt.suptitle(f'Rosa dos ventos de {airport_name} com dados de 2011 a 2019')
-    Path(f'{img_path}/{airport_name}').mkdir(parents=True, exist_ok=True)
-    filename = f'{img_path}/{airport_name}/00_{airport_name}_2011-2019.png'
-    if not os.path.exists(filename):
-        plt.savefig(filename)
-
-# Create the windrose for each month
-year = {1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
-        7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'}
-
-for month_number, month_name in year.items():
-    for i in range(len(files)):
-        # Read into a Pandas dataframe all the i files inside the defined PATH
-        airport = pd.read_csv(f'{ready_data_path}/{files[i]}')
-        # Filter the specific month given the year dict
-        airport.index = pd.to_datetime(airport['DATE'])
-        airport = airport[airport.index.month.isin([month_number])]
-        # Determine the relative percentage of observation in each speed and direction bin
-        directions = np.arange(0, 360, 15)
-        airport_name = f'{files[i].split("_")[0]}'
-        print(f'Creating {month_name.upper()} windrose for {airport_name}')
-        rose_data = create_rosedata(airport)   # <------------------ PUT NEW FUNCTIONS HERE
-        fig = wind_rose(rose_data, directions)    # <------------------ PUT NEW FUNCTIONS HERE
-        plt.suptitle(f'Rosa dos ventos de {airport_name} com dados de 2011 a 2019 \n {month_name.upper()}')
-        Path(f'{img_path}/{airport_name}').mkdir(parents=True, exist_ok=True)
-        filename = f'{img_path}/{airport_name}/{month_number:02}_{airport_name}_2011-2019_{month_name}.png'
-        if not os.path.exists(filename):
-            plt.savefig(filename)
-
-
-# Create the windrose for each time of the day
-for hour in range(1, 24, 1):
-    for i in range(len(files)):
-        # Read into a Pandas dataframe all the i files inside the defined PATH
-        airport = pd.read_csv(f'{ready_data_path}/{files[i]}')
-        # Filter the specific month given the year dict
-        airport.index = pd.to_datetime(airport['DATE'])
-        airport = airport[airport.index.hour.isin([hour])]
-        # Determine the relative percentage of observation in each speed and direction bin
-        directions = np.arange(0, 360, 15)
-        airport_name = f'{files[i].split("_")[0]}'
-        print(f'Creating {hour} UTC windrose for {airport_name}')
-        rose_data = create_rosedata(airport)    # <------------------ PUT NEW FUNCTIONS HERE
-        fig = wind_rose(rose_data, directions)    # <------------------ PUT NEW FUNCTIONS HERE
-        plt.suptitle(f'Rosa dos ventos de {airport_name} com dados de 2011 a 2019 \n {hour:02} UTC')
-        Path(f'{img_path}/{airport_name}').mkdir(parents=True, exist_ok=True)
-        filename = f'{img_path}/{airport_name}/{airport_name}_2011-2019_{hour:02} UTC.png'
-        if not os.path.exists(filename):
-            plt.savefig(filename)
+    def plot_phenomena(self, fixed_data, palette=None):
+        # Filter CAVOK data
+        cavok = fixed_data['phenomenon_1'].isin(['CAVOK'])
+        cavok_data = fixed_data['phenomenon_1'].loc[cavok]
+        non_cavok_data = fixed_data.loc[~cavok]
+        # Plot countplot
+        if palette is None:
+            palette = sns.color_palette('coolwarm', n_colors=non_cavok_data.shape[1])
+        total = float(len(fixed_data))
+        total_cavok = float(len(cavok_data))
+        fig, ax = plt.subplots(figsize=(8, 6))
+        fig = sns.countplot(data=non_cavok_data,
+                            x='phenomenon_1',
+                            order=non_cavok_data['phenomenon_1'].value_counts().index,
+                            color=palette[0])
+        ax.set(xlabel='Fenômeno', ylabel='Número de ocorrências')
+        # Plotting the CAVOk information in the top right position
+        position = fig.patches
+        x_position = position[-1].get_x()
+        y_position = position[0].get_height()
+        ax.text(x_position, y_position,
+                f'Sem fenômeno: {(total_cavok / total) * 100:.2f}%',
+                horizontalalignment='right',
+                verticalalignment='top')
+        # Plotting percentages on the bars
+        for p in fig.patches:
+            height = p.get_height()
+            ax.text(p.get_x() + p.get_width() / 2.,
+                    height + 0.3,
+                    f'{(height / total) * 100:.2f}%',
+                    ha="center")
+        return fig

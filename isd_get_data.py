@@ -1,5 +1,7 @@
 import urllib.request
+from urllib.error import HTTPError
 import pandas as pd
+from pandas.io import parsers
 import os
 import math
 import re
@@ -20,7 +22,7 @@ class GetIsdData:
     def __init__(self, airports_df, path):
         self.station_codes = airports_df['CODE'].values  # Code goes into the link to download the files
         self.station_icao = airports_df['ICAO'].values  # ICAO identifier goes into file name
-        self.PATH = path
+        self.raw_data_path = path
 
     def download_isd_data(self):
         """
@@ -29,12 +31,16 @@ class GetIsdData:
         """
         for code, icao in zip(self.station_codes, self.station_icao):  # Looping over the given airports
             print(f'Downloading data for {icao}')
-            Path(f'{self.PATH}/{icao}').mkdir(parents=True, exist_ok=True)  # Creating a folder for each airport
+            Path(f'{self.raw_data_path}/{icao}').mkdir(parents=True, exist_ok=True)  # Creating a folder for each airport
             for year in range(2011, 2020, 1):
                 url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{code}.csv'
-                filename = f'{self.PATH}/{icao}/{year}.csv'
+                filename = f'{self.raw_data_path}/{icao}/{year}.csv'
                 if not os.path.exists(filename):  # Only download if file does not exist
-                    urllib.request.urlretrieve(url, filename)
+                    try:
+                        urllib.request.urlretrieve(url, filename)
+                    except urllib.error.HTTPError as exception:
+                        print(f'Unfortunately there is no {year} data available for {icao}: Error {exception.code}')
+                        continue
 
     def unify_files(self):
         """
@@ -43,10 +49,17 @@ class GetIsdData:
         """
         dict_data = {}
         for code, icao in zip(self.station_codes, self.station_icao):
-            csv_list = os.listdir(path=f'{self.PATH}/{icao}/')
+            csv_list = os.listdir(path=f'{self.raw_data_path}/{icao}/')
             grouped = []
             for file in sorted(csv_list):
-                df = pd.read_csv(f'{self.PATH}/{icao}/{file}', index_col='DATE')  # DATE column is used as index
+                # DATE column is used as index
+                try:
+                    df = pd.read_csv(f'{self.raw_data_path}/{icao}/{file}',
+                                     index_col='DATE',
+                                     error_bad_lines=False,
+                                     engine="python")
+                except (parsers.CParserWrapper, KeyError):
+                    continue
                 grouped.append(df)
             data = pd.concat(grouped, sort=False)  # Stores all data data into a dataframe
             data = data.set_index(data.index)  # Sets index to datetime format
