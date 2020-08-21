@@ -177,7 +177,7 @@ class GetIsdData:
         # and 22000 means unlimited...
         # BUT... "ceiling values above 1600m (5000ft) are not considered ceiling" Lets just make them NaN...
         base_data['ceiling'] = base_data['ceiling'].astype(int)
-        base_data['ceiling'][(base_data['ceiling'] > 1599)] = 5001
+        base_data['ceiling'][(base_data['ceiling'] > 1599)] = np.nan
 
         # Coverage
         base_data.filter(regex='coverage').fillna(0)
