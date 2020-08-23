@@ -2,6 +2,7 @@ import urllib.request
 from urllib.error import HTTPError
 import pandas as pd
 from pandas.io import parsers
+import pandas.api.types
 import os
 import math
 import re
@@ -19,10 +20,12 @@ class GetIsdData:
     extract information from them
     """
 
-    def __init__(self, airports_df, path):
+    def __init__(self, airports_df, path, start_year, end_year):
         self.station_codes = airports_df['CODE'].values  # Code goes into the link to download the files
         self.station_icao = airports_df['ICAO'].values  # ICAO identifier goes into file name
-        self.raw_data_path = path
+        self.RAW_DATA_PATH = path
+        self.start_year = start_year
+        self.end_year = end_year
 
     def download_isd_data(self):
         """
@@ -31,10 +34,11 @@ class GetIsdData:
         """
         for code, icao in zip(self.station_codes, self.station_icao):  # Looping over the given airports
             print(f'Downloading data for {icao}')
-            Path(f'{self.raw_data_path}/{icao}').mkdir(parents=True, exist_ok=True)  # Creating a folder for each airport
-            for year in range(2011, 2020, 1):
+            Path(f'{self.RAW_DATA_PATH}/{icao}').mkdir(parents=True,
+                                                       exist_ok=True)  # Creating a folder for each airport
+            for year in range(self.start_year, self.end_year, 1):
                 url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{code}.csv'
-                filename = f'{self.raw_data_path}/{icao}/{year}.csv'
+                filename = f'{self.RAW_DATA_PATH}/{icao}/{year}.csv'
                 if not os.path.exists(filename):  # Only download if file does not exist
                     try:
                         urllib.request.urlretrieve(url, filename)
@@ -49,12 +53,12 @@ class GetIsdData:
         """
         dict_data = {}
         for code, icao in zip(self.station_codes, self.station_icao):
-            csv_list = os.listdir(path=f'{self.raw_data_path}/{icao}/')
+            csv_list = os.listdir(path=f'{self.RAW_DATA_PATH}/{icao}/')
             grouped = []
             for file in sorted(csv_list):
                 # DATE column is used as index
                 try:
-                    df = pd.read_csv(f'{self.raw_data_path}/{icao}/{file}',
+                    df = pd.read_csv(f'{self.RAW_DATA_PATH}/{icao}/{file}',
                                      index_col='DATE',
                                      error_bad_lines=False,
                                      engine="python")
@@ -89,12 +93,16 @@ class GetIsdData:
             rh_list.append(rh)
         return rh_list
 
-    def extract_data(self, data):
+    def extract_data(self, df):
         """
         Contains instructions based on ISD documentation to extract data into a usable format
         License: https://www.ncdc.noaa.gov/isd/data-access
         Documentation: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
         """
+        # Dropping SYNOP observations to avoid redundancies
+        data = df[df['REPORT_TYPE'].isin(['FM-15', 'FM-16', 'SY-MT'])]
+
+
         wind_cols = ['direction', 'quality', 'type_code', 'speed', 'speed_quality']
         wind = self.get_variable(data, 'WND', wind_cols)
 
@@ -169,10 +177,10 @@ class GetIsdData:
         # If CAVOK is Y, it means the visibility is greater than 10000 meters...
         # Also, values of visibility above 10,000m must not be considered as restrictive to the operations,
         # thus, let's just set them as unlimited...
-        base_data['visibility'][(base_data['visibility'] > 9001) & (base_data['visibility'] < 999998)] = 10000
-        base_data['visibility'][base_data['visibility'] == 999999] = 10000
+        base_data['visibility'][(base_data['visibility'] > 9001) & (base_data['visibility'] < 999998)] = np.nan
+        base_data['visibility'][base_data['visibility'] == 999999] = np.nan
 
-       # Ceiling
+        # Ceiling
         # According to the manual, ceiling regarded as 99999 means it's missing (from the METAR)
         # and 22000 means unlimited...
         # BUT... "ceiling values above 1600m (5000ft) are not considered ceiling" Lets just make them NaN...
@@ -203,9 +211,10 @@ class GetIsdData:
         clean = [float(x) for x in clean]
         base_data['slp'] = clean
 
-        # Also, values of pressure greater than 1050 and lesser than 900 are absurd.
+        # Also, values of pressure greater than 1040 and lesser than 980 are absurd.
         # They are probably typos as well so let's get rid of them...
-        base_data['slp'][(base_data['slp'] > 1050) | (base_data['slp'] < 900)] = np.nan
+        # base_data['slp'][(base_data['slp'] > 1040) | (base_data['slp'] < 960)] = np.nan
+
 
         # Correcting data for standard units
 
@@ -228,29 +237,28 @@ class GetIsdData:
         # Broad view of the data
         # print(base_data.describe())
 
-
         # Dropping unused columns
         base_data = base_data.drop(['REM', 'cavok'], axis=1).round(0)
         # Create a column for relative humidity
         base_data['rh'] = self.calculate_rh(base_data['temperature'], base_data['dew'])
 
-        base_data[['direction',
-                   'speed',
-                   'visibility',
-                   'temperature',
-                   'dew',
-                   'slp',
-                   'rh']] = (base_data[['direction',
-                                        'speed',
-                                        'visibility',
-                                        'temperature',
-                                        'dew',
-                                        'slp',
-                                        'rh']].ffill() + base_data[['direction',
-                                                                    'speed',
-                                                                    'visibility',
-                                                                    'temperature',
-                                                                    'dew',
-                                                                    'slp',
-                                                                    'rh']].bfill()) / 2
+        # base_data[['direction',
+        #            'speed',
+        #            'visibility',
+        #            'temperature',
+        #            'dew',
+        #            'slp',
+        #            'rh']] = (base_data[['direction',
+        #                                 'speed',
+        #                                 'visibility',
+        #                                 'temperature',
+        #                                 'dew',
+        #                                 'slp',
+        #                                 'rh']].ffill() + base_data[['direction',
+        #                                                             'speed',
+        #                                                             'visibility',
+        #                                                             'temperature',
+        #                                                             'dew',
+        #                                                             'slp',
+        #                                                             'rh']].bfill()) / 2
         return base_data
