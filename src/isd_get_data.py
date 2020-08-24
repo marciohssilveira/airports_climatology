@@ -19,55 +19,54 @@ class GetIsdData:
     extract information from them
     """
 
-    def __init__(self, data, path, start_year, end_year):
-        self.station_codes = data['CODE'].values  # Code goes into the link to download the files
+    def __init__(self, data, path, start_year, end_year, station):
+        self.station_code = data['CODE'].values  # Code goes into the link to download the files
         self.station_icao = data['ICAO'].values  # ICAO identifier goes into file name
         self.path = path
         self.start_year = start_year
         self.end_year = end_year
+        self.station = station
 
     def download_isd_data(self):
         """
         Creates the link to download ISD files as well as the directories to put the files
         :return: Organizes the downloaded files into folders
         """
-        for code, icao in zip(self.station_codes, self.station_icao):  # Looping over the given airports
-            Path(f'{self.path}/{icao}').mkdir(parents=True,
-                                              exist_ok=True)  # Creating a folder for each airport
-            for year in range(self.start_year, self.end_year, 1):
-                url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{code}.csv'
-                filename = f'{self.path}/{icao}/{year}.csv'
-                if not os.path.exists(filename):  # Only download if file does not exist
-                    try:
-                        urllib.request.urlretrieve(url, filename)
-                    except urllib.error.HTTPError as exception:
-                        print(f'Unfortunately there is no {year} data available for {icao}: Error {exception.code}')
-                        continue
+        Path(f'{self.path}').mkdir(parents=True,
+                                   exist_ok=True)  # Creating a folder for each airport
+        print(f'Downloading {self.station_icao[0]} data')
+        for year in range(self.start_year, self.end_year, 1):
+            url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{self.station_code}.csv'
+            filename = f'{self.path}/{year}.csv'
+            if not os.path.exists(filename):  # Only download if file does not exist
+                try:
+                    urllib.request.urlretrieve(url, filename)
+                except urllib.error.HTTPError as exception:
+                    print(f'Unfortunately there is no {year} data available'
+                          f' for {self.station_icao[0]}: Error {exception.code}')
+                    continue
 
     def unify_files(self):
         """
         Takes oll the raw downloaded files and unites them into one file
         :return: a dictionary with the airport ICAO as key and dataframes with all the years concatenated as values
         """
-        dict_data = {}
-        for icao in self.station_icao:
-            csv_list = os.listdir(path=f'{self.path}/{icao}/')
-            grouped = []
-            for file in sorted(csv_list):
-                # DATE column is used as index
-                try:
-                    df = pd.read_csv(f'{self.path}/{icao}/{file}',
-                                     index_col='DATE',
-                                     error_bad_lines=False,
-                                     engine="python")
-                except (parsers.CParserWrapper, KeyError) as exception:
-                    f'{file} data for {icao} could not be processed: Error {exception.code}'
-                    continue
-                grouped.append(df)
-            data = pd.concat(grouped, sort=False)  # Stores all data data into a dataframe
-            data = data.set_index(data.index)  # Sets index to datetime format
-            dict_data[icao] = data
-        return dict_data
+        csv_list = os.listdir(path=f'{self.path}/')
+        grouped = []
+        for file in sorted(csv_list):
+            # DATE column is used as index
+            try:
+                df = pd.read_csv(f'{self.path}/{file}',
+                                 index_col='DATE',
+                                 error_bad_lines=False,
+                                 engine="python")
+            except (parsers.CParserWrapper, KeyError) as exception:
+                f'{file} data for {self.station} could not be processed: Error {exception.code}'
+                continue
+            grouped.append(df)
+        data = pd.concat(grouped, sort=False)  # Stores all data data into a dataframe
+        data = data.set_index(data.index)  # Sets index to datetime format
+        return data
 
     def get_variable(self, data, column, column_list):
         """
@@ -246,5 +245,5 @@ class GetIsdData:
         base_data['rh'] = base_data['rh'].astype(int)
 
         base_data.replace(to_replace=[99999], value=np.nan, inplace=True)
-        
+
         return base_data
