@@ -7,12 +7,11 @@ from isd_get_data import GetIsdData
 INPUT_DATA_PATH = './src/data'
 start_year = 2011
 end_year = 2020
-airports_to_use = ['airports']
 
-for station in airports_to_use:
-    with open(f'{INPUT_DATA_PATH}/{station}.txt', 'r') as file:
-        airports_list = [x.strip() for x in file.readlines()]
+with open(f'{INPUT_DATA_PATH}/airports.txt', 'r') as file:
+    airports_list = [x.strip() for x in file.readlines()]
 
+for station in airports_list:
     # Matching the given airports with the ISD codes in isd_all_stations.csv
     isd_stations = pd.read_csv(f'{INPUT_DATA_PATH}/isd_all_stations.csv', index_col=False)
     use_stations = isd_stations[isd_stations['ICAO'].isin(airports_list)].sort_values(by='END', ascending=True)#[2:]
@@ -34,15 +33,14 @@ for station in airports_to_use:
     # all years of data concatenated into a single dataframe (values)
     airports_dict = isd_downloader.unify_files()
 
-    # Extract information from the preprocessed file
-    extracted_data = {}
-    for airport, data in airports_dict.items():  #
-        print(f'Extracting data for {airport}....')
-        # Extract information from raw data
-        isd_data = isd_downloader.extract_data(data)
-        # try:
-        #     isd_data = isd_downloader.extract_data(data)
-        # except (KeyError, TypeError):
-        #     continue
-        # Store in a ready-to-use csv
-        isd_data.to_csv(f'{ready_data_path}/{airport}_isd_data.csv')
+# Extract information from the preprocessed file
+extracted_data = {}
+for airport, data in airports_dict.items():
+    # Extract information from raw data
+    isd_data = isd_downloader.extract_data(data)
+    # try:
+    #     isd_data = isd_downloader.extract_data(data)
+    # except (KeyError, TypeError):
+    #     continue
+    # Store in a ready-to-use csv
+    isd_data.to_csv(f'{ready_data_path}/{airport}_isd_data.csv')

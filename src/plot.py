@@ -14,18 +14,17 @@ INPUT_PATH = './src/data/ready'  # Files ready to be used
 OUTPUT_PATH = f'./src/plots'  # Directory where the plots will be stored
 start_year = 2011
 end_year = 2020
-airports_to_use = ['airports']
 
-for station in airports_to_use:
-    station_path = f'{INPUT_PATH}/{station}'
-    base_data = {}
-    for file in os.listdir(station_path):
-        # Read the directory with the ready files and store them in a dictionary for future use
-        if not file.startswith('.'):
-            airport = f'{file.split("_")[0]}'
-            df = pd.read_csv(f'{station_path}/{file}')
-            df.index = pd.to_datetime(df['DATE'])
-            base_data[airport] = df
+# Access folder for each airport grouped in airports.txt
+station_path = f'{INPUT_PATH}/airports'
+base_data = {}
+for file in os.listdir(station_path):
+    # Read the directory with the ready files and store them in a dictionary for future use
+    if not file.startswith('.'):
+        airport = f'{file.split("_")[0]}'
+        df = pd.read_csv(f'{station_path}/{file}')
+        df.index = pd.to_datetime(df['DATE'])
+        base_data[airport] = df
     # Iterate over the base_data dict to get the data and the airport names
     for airport, data in base_data.items():
         airport_path = f'{OUTPUT_PATH}/{station}/{airport}'

@@ -32,7 +32,6 @@ class GetIsdData:
         :return: Organizes the downloaded files into folders
         """
         for code, icao in zip(self.station_codes, self.station_icao):  # Looping over the given airports
-            print(f'Downloading data for {icao}')
             Path(f'{self.path}/{icao}').mkdir(parents=True,
                                               exist_ok=True)  # Creating a folder for each airport
             for year in range(self.start_year, self.end_year, 1):
