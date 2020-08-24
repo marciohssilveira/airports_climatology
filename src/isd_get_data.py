@@ -135,6 +135,21 @@ class GetIsdData:
         dew_cols = ['dew', 'quality']
         dew = self.get_variable(data, 'DEW', dew_cols)
 
+        # Concatenating all data into a base df containing the meteorological variables
+        base_data = pd.concat([wind[['direction', 'speed']].fillna(99999),
+                               visibility[['visibility']].fillna(99999),
+                               phenomenon1[['phenomenon']].fillna(99999),
+                               phenomenon2[['phenomenon']].fillna(99999),
+                               sky_cover1[['coverage']].fillna(99999),
+                               sky_cover2[['coverage']].fillna(99999),
+                               sky_cover3[['coverage']].fillna(99999),
+                               sky_cover4[['coverage']].fillna(99999),
+                               ceiling[['ceiling']].fillna(99999),
+                               ceiling[['cavok']].fillna(99999),
+                               temperature[['temperature']].fillna(99999),
+                               dew[['dew']].fillna(99999)],
+                              axis=1)
+
         # Note that there were no information on sea level pressure, which will be extracted from REM column
         # Iterating over the METAR messages to extract the slp values
         metar = data['REM'].to_list()
@@ -144,71 +159,10 @@ class GetIsdData:
             # the values are put into the list pressure, which will be appended to the final data frame
             pressure.append(slp[3:7])
 
-        slp = pd.DataFrame(pressure, columns=['slp'])
-
-        # Concatenating all data into a base df containing the meteorological variables
-        base_data = pd.concat([wind[['direction', 'speed']].astype(int),
-                               visibility[['visibility']].astype(int),
-                               phenomenon1[['phenomenon']].astype(int),
-                               phenomenon2[['phenomenon']].astype(int),
-                               sky_cover1[['coverage', 'base_height']].astype(int),
-                               sky_cover2[['coverage', 'base_height']].astype(int),
-                               sky_cover3[['coverage', 'base_height']].astype(int),
-                               sky_cover4[['coverage', 'base_height']].astype(int),
-                               ceiling[['ceiling']].astype(int),
-                               ceiling[['cavok']],
-                               temperature[['temperature']].astype(int),
-                               dew[['dew']].astype(int),
-                               slp[['slp']]].astype(int),
-                              axis=1)
-
-        base_data.columns = ['direction', 'speed', 'visibility',
-                             'phenomenon_1', 'phenomenon_2',
-                             'coverage_1', 'base_height_1',
-                             'coverage_2', 'base_height_2',
-                             'coverage_3', 'base_height_3',
-                             'coverage_4', 'base_height_4',
-                             'ceiling', 'cavok', 'temperature', 'dew', 'slp']
-
-        # Some corrections in the data...
-        # Wind
-        # According with the manual, wind direction as 999 can be missing or variable wind.
-        # It can be calm too, as seen by the data (comparing them to METAR)...
-        # When the wind is calm, let's set them to 0
-        base_data['direction'][(base_data['direction'] == 999) & (base_data['speed'] == 0)] = 0
-        base_data['speed'][(base_data['direction'] == 999) & (base_data['speed'] == 0)] = 0
-
-        # When the wind is variable, let's set only the direction to 0
-        base_data['direction'][(base_data['direction'] == 999) & (base_data['speed'] != 0)] = 0
-
-        # According to the manual, speed_rate seen as 9999 means it is missing.
-        # Or it is just a typo at the METAR. Let's just delete them...
-        base_data['speed'][base_data['speed'] == 9999] = 0
-
-        # Visibility
-        # The manual says visibility values of 999999 means they are missing.
-        # If CAVOK is Y, it means the visibility is greater than 10000 meters...
-        # Also, values of visibility above 10,000m must not be considered as restrictive to the operations,
-        # thus, let's just set them as unlimited...
-        base_data['visibility'][(base_data['visibility'] > 9001) & (base_data['visibility'] < 999998)] = np.nan
-        base_data['visibility'][base_data['visibility'] == 999999] = np.nan
-
-        # Ceiling
-        # According to the manual, ceiling regarded as 99999 means it's missing (from the METAR)
-        # and 22000 means unlimited...
-        # BUT... "ceiling values above 1600m (5000ft) are not considered ceiling" Lets just make them NaN...
-        base_data['ceiling'][(base_data['ceiling'] > 1599)] = np.nan
-
-        # Temperature
-        # The manual says temperature/dew values above 9999 means they are missing...
-        base_data['temperature'][base_data['temperature'] == 9999] = np.nan
-        base_data['dew'][base_data['dew'] == 9999] = np.nan
-
         # Sea Level Pressure
         # As we extracted the slp values from METAR message using regex,
         # some typos corrupted the data extracted. Let's just ignore them...
-        dirty = base_data['slp'].tolist()
-        dirty = [str(i) for i in dirty]
+        dirty = [str(i) for i in pressure]
 
         clean = []
         for value in dirty:
@@ -220,6 +174,50 @@ class GetIsdData:
         clean = [float(x) for x in clean]
         base_data['slp'] = clean
 
+        base_data.columns = ['direction', 'speed', 'visibility',
+                             'phenomenon_1', 'phenomenon_2',
+                             'coverage_1',
+                             'coverage_2',
+                             'coverage_3',
+                             'coverage_4',
+                             'ceiling', 'cavok', 'temperature', 'dew', 'slp']
+
+        # Some corrections in the data...
+        # Wind
+        # According with the manual, wind direction as 999 can be missing or variable wind.
+        # It can be calm too, as seen by the data (comparing them to METAR)...
+        # When the wind is calm, let's set them to 0
+        base_data['direction'].loc[(base_data['direction'] == 999) & (base_data['speed'] == 0)] = 0
+        base_data['speed'].loc[(base_data['direction'] == 999) & (base_data['speed'] == 0)] = 0
+
+        # When the wind is variable, let's set only the direction to 0
+        base_data['direction'].loc[(base_data['direction'] == 999) & (base_data['speed'] != 0)] = 0
+
+        # According to the manual, speed_rate seen as 9999 means it is missing.
+        # Or it is just a typo at the METAR. Let's just delete them...
+        base_data['speed'].loc[base_data['speed'] == 9999] = 0
+
+        # Visibility
+        # The manual says visibility values of 999999 means they are missing.
+        # If CAVOK is Y, it means the visibility is greater than 10000 meters...
+        # Also, values of visibility above 10,000m must not be considered as restrictive to the operations,
+        # thus, let's just set them as unlimited...
+        # Ignoring non significant visibility values (above 9000)
+        base_data['visibility'] = base_data['visibility'].astype(int)
+        base_data['visibility'].loc[base_data['visibility'] == 999999] = np.nan
+
+        # Ceiling
+        # According to the manual, ceiling regarded as 99999 means it's missing (from the METAR)
+        # and 22000 means unlimited...
+        # BUT... "ceiling values above 1600m (5000ft) are not considered ceiling" Lets just make them NaN...
+        base_data['ceiling'] = base_data['ceiling'].astype(int)
+        base_data['ceiling'].loc[(base_data['ceiling'] > 1599)] = np.nan
+
+        # Temperature
+        # The manual says temperature/dew values above 9999 means they are missing...
+        base_data['temperature'].loc[base_data['temperature'] == 9999] = np.nan
+        base_data['dew'].loc[base_data['dew'] == 9999] = np.nan
+
         # Also, values of pressure greater than 1040 and lesser than 980 are absurd.
         # They are probably typos as well so let's get rid of them...
         # base_data['slp'][(base_data['slp'] > 1040) | (base_data['slp'] < 960)] = np.nan
@@ -227,20 +225,27 @@ class GetIsdData:
         # Correcting data for standard units
         # Wind direction is in degrees, which is fine...
         # Wind Speed is in meters per second and scaled by 10, let's downscale them and convert to knots...
-        base_data['speed'] = base_data['speed'] * 0.194384
+        base_data['speed'] = base_data['speed'].astype(int) * 0.194384
+        base_data['speed'] = base_data['speed'].astype(int)
 
         # Ceiling is in meters, let's set them to feet
+
         base_data['ceiling'] = round(base_data['ceiling'] * 3.28084)
 
         # Visibility is in meters, which is fine...
 
         # Temperature and dew are scaled by 10, let's downscale them...
-        base_data['temperature'] = base_data['temperature'] / 10
-        base_data['dew'] = base_data['dew'] / 10
+        base_data['temperature'] = base_data['temperature'].astype(int) / 10
+        base_data['temperature'] = base_data['temperature'].astype(int)
+        base_data['dew'] = base_data['dew'].astype(int) / 10
+        base_data['dew'] = base_data['dew'].astype(int)
 
         # Pressure is in Hectopascal, which is fine...
 
         # Create a column for relative humidity using a previously defined function
         base_data['rh'] = self.calculate_rh(base_data['temperature'], base_data['dew'])
+        base_data['rh'] = base_data['rh'].astype(int)
 
+        base_data.replace(to_replace=[99999], value=np.nan, inplace=True)
+        
         return base_data

@@ -121,11 +121,3 @@ class WindRose:
         ax.set_xticklabels(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'])
 
         return fig
-
-
-# Determine the total number of observations and how many have calm conditions
-# total_count = airport.shape[0]
-# calm_count = airport.query("speed == 0").shape[0]
-# percentage = (calm_count * 100) / total_count
-# percentage_text = f'Calm: {percentage:.2f}%'
-

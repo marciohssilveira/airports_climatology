@@ -10,8 +10,8 @@ warnings.filterwarnings('ignore')
 locale.setlocale(locale.LC_ALL, 'pt_pt.UTF-8')
 
 # Define where the script will find the files
-INPUT_PATH = './data/input/isd/ready'  # Files ready to be used
-OUTPUT_PATH = f'./data/output'  # Directory where the plots will be stored
+INPUT_PATH = './src/data/input/isd/ready'  # Files ready to be used
+OUTPUT_PATH = f'./src/data/output'  # Directory where the plots will be stored
 start_year = 2011
 end_year = 2020
 # offices = ['cma_gr', 'cma_gl']

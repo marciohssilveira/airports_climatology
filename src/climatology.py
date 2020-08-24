@@ -5,7 +5,7 @@ import pandas as pd
 import locale
 import matplotlib.pyplot as plt
 import seaborn as sns
-from src.my_windrose import WindRose
+from my_windrose import WindRose
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -25,7 +25,7 @@ class Climatology:
         # Wx
         # A csv file with all phenomenon codes was created using the ISD manual
         # Then they were put in a dict and then replaced in the rows
-        codes = pd.read_csv('./data/input/wx_codes.csv', sep=';', index_col=False)
+        codes = pd.read_csv('./src/data/input/wx_codes.csv', sep=';', index_col=False)
         codes_dict = codes['Phenomenon'].to_dict()
         phenomena = self.data.filter(like='phenomenon').fillna(0)
         self.data[phenomena.columns] = phenomena.replace(codes_dict)
