@@ -19,13 +19,13 @@ class GetIsdData:
     extract information from them
     """
 
-    def __init__(self, data, path, start_year, end_year, station):
-        self.station_code = data['CODE'].values  # Code goes into the link to download the files
-        self.station_icao = data['ICAO'].values  # ICAO identifier goes into file name
+    def __init__(self, data, path, start_year, end_year):
+        self.station_code = data['CODE'].values[0]  # Code goes into the link to download the files
+        self.station_icao = data['ICAO'].values[0]  # ICAO identifier goes into file name
         self.path = path
         self.start_year = start_year
         self.end_year = end_year
-        self.station = station
+        # self.station = station
 
     def download_isd_data(self):
         """
@@ -34,7 +34,7 @@ class GetIsdData:
         """
         Path(f'{self.path}').mkdir(parents=True,
                                    exist_ok=True)  # Creating a folder for each airport
-        print(f'Downloading {self.station_icao[0]} data')
+        print(f'Downloading {self.station_icao} data')
         for year in range(self.start_year, self.end_year, 1):
             url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{self.station_code}.csv'
             filename = f'{self.path}/{year}.csv'
@@ -108,18 +108,14 @@ class GetIsdData:
         visibility_cols = ['visibility', 'quality', 'variability', 'quality_variability']
         visibility = self.get_variable(data, 'VIS', visibility_cols)
 
-        # Extracting first two groups of sigwx data from MW1 and MW2 columns
+        # Extracting first group of sigwx data from MW1 column
         phenomenon_cols = ['phenomenon', 'quality']
         phenomenon1 = self.get_variable(data, 'MW1', phenomenon_cols)
-        phenomenon2 = self.get_variable(data, 'MW2', phenomenon_cols)
 
-        # Extracting four layers of sky cover from GAx columns
+        # Extracting sky cover from GA1 columns
         sky_cover_cols = ['coverage', 'quality', 'base_height', 'base_height_quality', 'cloud_type',
                           'cloud_type_quality']
         sky_cover1 = self.get_variable(data, 'GA1', sky_cover_cols)
-        sky_cover2 = self.get_variable(data, 'GA2', sky_cover_cols)
-        sky_cover3 = self.get_variable(data, 'GA3', sky_cover_cols)
-        sky_cover4 = self.get_variable(data, 'GA4', sky_cover_cols)
 
         # Extracting Ceiling data from CIG column
         ceiling_cols = ['ceiling', 'quality', 'determination_code', 'cavok']
@@ -137,11 +133,7 @@ class GetIsdData:
         base_data = pd.concat([wind[['direction', 'speed']].fillna(99999),
                                visibility[['visibility']].fillna(99999),
                                phenomenon1[['phenomenon']].fillna(99999),
-                               phenomenon2[['phenomenon']].fillna(99999),
                                sky_cover1[['coverage']].fillna(99999),
-                               sky_cover2[['coverage']].fillna(99999),
-                               sky_cover3[['coverage']].fillna(99999),
-                               sky_cover4[['coverage']].fillna(99999),
                                ceiling[['ceiling']].fillna(99999),
                                ceiling[['cavok']].fillna(99999),
                                temperature[['temperature']].fillna(99999),
@@ -173,11 +165,7 @@ class GetIsdData:
         base_data['slp'] = clean
 
         base_data.columns = ['direction', 'speed', 'visibility',
-                             'phenomenon_1', 'phenomenon_2',
-                             'coverage_1',
-                             'coverage_2',
-                             'coverage_3',
-                             'coverage_4',
+                             'phenomenon', 'coverage',
                              'ceiling', 'cavok', 'temperature', 'dew', 'slp']
 
         # Some corrections in the data...
@@ -202,6 +190,7 @@ class GetIsdData:
         # thus, let's just set them as unlimited...
         # Ignoring non significant visibility values (above 9000)
         base_data['visibility'] = base_data['visibility'].astype(int)
+        base_data['visibility'].loc[base_data['visibility'] >= 10000] = 10000
         base_data['visibility'].loc[base_data['visibility'] == 999999] = np.nan
 
         # Ceiling
@@ -212,9 +201,15 @@ class GetIsdData:
         base_data['ceiling'].loc[(base_data['ceiling'] > 1599)] = np.nan
 
         # Temperature
+        # Temperature and dew are scaled by 10, let's downscale them...
+        base_data['temperature'] = base_data['temperature'].astype(int) / 10
+        base_data['dew'] = base_data['dew'].astype(int) / 10
+
         # The manual says temperature/dew values above 9999 means they are missing...
-        base_data['temperature'].loc[base_data['temperature'] == 9999] = np.nan
-        base_data['dew'].loc[base_data['dew'] == 9999] = np.nan
+        base_data['temperature'] = base_data['temperature'].astype(int)
+        base_data['temperature'].loc[base_data['temperature'] > 99] = np.nan
+        base_data['dew'] = base_data['dew'].astype(int)
+        base_data['dew'].loc[base_data['dew'] > 99] = np.nan
 
         # Also, values of pressure greater than 1040 and lesser than 980 are absurd.
         # They are probably typos as well so let's get rid of them...
@@ -227,23 +222,15 @@ class GetIsdData:
         base_data['speed'] = base_data['speed'].astype(int)
 
         # Ceiling is in meters, let's set them to feet
-
-        base_data['ceiling'] = round(base_data['ceiling'] * 3.28084)
+        base_data['ceiling'] = base_data['ceiling'] * 3.28084
 
         # Visibility is in meters, which is fine...
-
-        # Temperature and dew are scaled by 10, let's downscale them...
-        base_data['temperature'] = base_data['temperature'].astype(int) / 10
-        base_data['temperature'] = base_data['temperature'].astype(int)
-        base_data['dew'] = base_data['dew'].astype(int) / 10
-        base_data['dew'] = base_data['dew'].astype(int)
 
         # Pressure is in Hectopascal, which is fine...
 
         # Create a column for relative humidity using a previously defined function
         base_data['rh'] = self.calculate_rh(base_data['temperature'], base_data['dew'])
-        base_data['rh'] = base_data['rh'].astype(int)
 
-        base_data.replace(to_replace=[99999], value=np.nan, inplace=True)
+        base_data.replace(to_replace=99999, value=np.nan, inplace=True)
 
         return base_data

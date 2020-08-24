@@ -16,21 +16,17 @@ start_year = 2011
 end_year = 2020
 
 # Access folder for each airport grouped in airports.txt
-station_path = f'{INPUT_PATH}/airports'
 base_data = {}
-for file in os.listdir(station_path):
+for file in os.listdir(INPUT_PATH):
     # Read the directory with the ready files and store them in a dictionary for future use
     if not file.startswith('.'):
         airport = f'{file.split("_")[0]}'
-        df = pd.read_csv(f'{station_path}/{file}')
+        df = pd.read_csv(f'{INPUT_PATH}/{file}', engine='python')
         df.index = pd.to_datetime(df['DATE'])
-        base_data[airport] = df
-    # Iterate over the base_data dict to get the data and the airport names
-    for airport, data in base_data.items():
-        airport_path = f'{OUTPUT_PATH}/{station}/{airport}'
+        airport_path = f'{OUTPUT_PATH}/{airport}'
         Path(airport_path).mkdir(parents=True, exist_ok=True)
         # Instantiate Climatology Class with the parameters
-        plot_climatology = Climatology(airport_path, data, airport, start_year, end_year)
+        plot_climatology = Climatology(airport_path, df, airport, start_year, end_year)
         # Plot all time boxplots with the variables
         plot_climatology.plot_variables_climatology()
         # Plot wx

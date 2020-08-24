@@ -32,18 +32,25 @@ class Climatology:
         return self.data
 
     def plot_variables_climatology(self):
-        # Plot boxplots with the variables
-        self.data['month'] = self.data.index.strftime('%b')
-
         # Filter data to remove outliers (caused mostly by typos)
         self.data[self.data['ceiling'] > 5001] = np.nan
         self.data[self.data['slp'] > 1040] = np.nan
         self.data[self.data['slp'] < 960] = np.nan
+        self.data[self.data['visibility'] >= 9998] = np.nan
 
-        data = self.data[['month', 'visibility', 'ceiling', 'temperature', 'dew', 'rh', 'slp']]
+        # Plot boxplots with the variables
+        self.data['month'] = self.data.index.strftime('%b')
 
-        variables = ['Mês', 'Visibilidade (< 10.000 m)', 'Teto (pés)', 'Temperatura do Ar (ºC)',
-                     'Ponto de Orvalho (ºC)', 'Umidade Relativa (%)', 'QNH (hPa)']
+        data = self.data[['month', 'visibility', 'ceiling', 
+                          'temperature', 'dew', 'rh', 'slp']]
+
+        variables = ['Mês',
+                     'Visibilidade (< 10.000 m)',
+                     'Teto (pés)',
+                     'Temperatura do Ar (ºC)',
+                     'Ponto de Orvalho (ºC)',
+                     'Umidade Relativa (%)',
+                     'QNH (hPa)']
 
         data.columns = variables
 
@@ -64,15 +71,15 @@ class Climatology:
         self.data = self.fix_wx_names()
         self.data['month'] = self.data.index.month
         self.data['hour'] = self.data.index.hour
-        phenomena = sorted(set(self.data['phenomenon_1']))
+        phenomena = sorted(set(self.data['phenomenon']))
         months = self.data.index.strftime('%b').unique()
         for wx in phenomena:
-            filtered_data = self.data[self.data['phenomenon_1'] == wx]
+            filtered_data = self.data[self.data['phenomenon'] == wx]
             fig, ax = plt.subplots(figsize=(10, 8))
             heatmap_data = pd.pivot_table(filtered_data,
                                           index='hour',
                                           columns='month',
-                                          values='phenomenon_1',
+                                          values='phenomenon',
                                           fill_value=0,
                                           aggfunc='count').reindex(sorted(self.data['hour'].unique()),
                                                                    columns=self.data['month'].unique(), fill_value=0)
