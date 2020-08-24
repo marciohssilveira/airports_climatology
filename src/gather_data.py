@@ -1,5 +1,3 @@
-import sys
-sys.path.append('./src')
 import pandas as pd
 from pathlib import Path
 from isd_get_data import GetIsdData
@@ -20,16 +18,16 @@ for office in offices:
     isd_stations = pd.read_csv(f'{INPUT_DATA_PATH}/isd_all_stations.csv', index_col=False)
     use_stations = isd_stations[isd_stations['ICAO'].isin(airports_list)].sort_values(by='END', ascending=True)[2:]
 
-    # Download data
-    RAW_DATA_PATH = f'{INPUT_DATA_PATH}/isd/raw/{office}'  # Specify where the raw data will be stored
-    READY_DATA_PATH = f'{INPUT_DATA_PATH}/isd/ready/{office}'  # Specify where the extracted data will be stored
+    # Create the paths and make sure the given paths exist
+    raw_data_path = f'{INPUT_DATA_PATH}/isd/raw/{office}'  # Specify where the raw data will be stored
+    ready_data_path = f'{INPUT_DATA_PATH}/isd/ready/{office}'  # Specify where the extracted data will be stored
 
-    # Make sure the given paths exist
     Path(f'{INPUT_DATA_PATH}/isd/raw/{office}').mkdir(parents=True, exist_ok=True)
     Path(f'{INPUT_DATA_PATH}/isd/ready/{office}').mkdir(parents=True, exist_ok=True)
 
+    # Download data
     # Instantiate the class containing the functions to download and edit files
-    isd_downloader = GetIsdData(use_stations, RAW_DATA_PATH, start_year, end_year)
+    isd_downloader = GetIsdData(use_stations, raw_data_path, start_year, end_year)
     # This will download the files if they do not exist in the directory ./data/isd/raw
     isd_downloader.download_isd_data()
 
@@ -47,4 +45,4 @@ for office in offices:
         except (KeyError, TypeError):
             continue
         # Store in a ready-to-use csv
-        isd_data.to_csv(f'{READY_DATA_PATH}/{airport}_isd_data.csv')
+        isd_data.to_csv(f'{ready_data_path}/{airport}_isd_data.csv')

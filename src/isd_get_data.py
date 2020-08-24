@@ -2,7 +2,6 @@ import urllib.request
 from urllib.error import HTTPError
 import pandas as pd
 from pandas.io import parsers
-import pandas.api.types
 import os
 import math
 import re
@@ -20,10 +19,10 @@ class GetIsdData:
     extract information from them
     """
 
-    def __init__(self, airports_df, path, start_year, end_year):
-        self.station_codes = airports_df['CODE'].values  # Code goes into the link to download the files
-        self.station_icao = airports_df['ICAO'].values  # ICAO identifier goes into file name
-        self.RAW_DATA_PATH = path
+    def __init__(self, data, path, start_year, end_year):
+        self.station_codes = data['CODE'].values  # Code goes into the link to download the files
+        self.station_icao = data['ICAO'].values  # ICAO identifier goes into file name
+        self.path = path
         self.start_year = start_year
         self.end_year = end_year
 
@@ -34,11 +33,11 @@ class GetIsdData:
         """
         for code, icao in zip(self.station_codes, self.station_icao):  # Looping over the given airports
             print(f'Downloading data for {icao}')
-            Path(f'{self.RAW_DATA_PATH}/{icao}').mkdir(parents=True,
-                                                       exist_ok=True)  # Creating a folder for each airport
+            Path(f'{self.path}/{icao}').mkdir(parents=True,
+                                              exist_ok=True)  # Creating a folder for each airport
             for year in range(self.start_year, self.end_year, 1):
                 url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{code}.csv'
-                filename = f'{self.RAW_DATA_PATH}/{icao}/{year}.csv'
+                filename = f'{self.path}/{icao}/{year}.csv'
                 if not os.path.exists(filename):  # Only download if file does not exist
                     try:
                         urllib.request.urlretrieve(url, filename)
@@ -52,17 +51,18 @@ class GetIsdData:
         :return: a dictionary with the airport ICAO as key and dataframes with all the years concatenated as values
         """
         dict_data = {}
-        for code, icao in zip(self.station_codes, self.station_icao):
-            csv_list = os.listdir(path=f'{self.RAW_DATA_PATH}/{icao}/')
+        for icao in self.station_icao:
+            csv_list = os.listdir(path=f'{self.path}/{icao}/')
             grouped = []
             for file in sorted(csv_list):
                 # DATE column is used as index
                 try:
-                    df = pd.read_csv(f'{self.RAW_DATA_PATH}/{icao}/{file}',
+                    df = pd.read_csv(f'{self.path}/{icao}/{file}',
                                      index_col='DATE',
                                      error_bad_lines=False,
                                      engine="python")
-                except (parsers.CParserWrapper, KeyError):
+                except (parsers.CParserWrapper, KeyError) as exception:
+                    f'{file} data for {icao} could not be processed: Error {exception.code}'
                     continue
                 grouped.append(df)
             data = pd.concat(grouped, sort=False)  # Stores all data data into a dataframe
@@ -70,14 +70,14 @@ class GetIsdData:
             dict_data[icao] = data
         return dict_data
 
-    def get_variable(self, df, column, column_list):
+    def get_variable(self, data, column, column_list):
         """
         This function access the raw 'df' (pandas dataframe),
         uses a list with the 'column' name (str) to explore the variable column,
         receives a 'column_list' of the columns names and
         returns a dataframe with the extracted data for the variable indicated.
         """
-        variable = pd.DataFrame(df[column], columns=[column])
+        variable = pd.DataFrame(data[column], columns=[column])
         variable = variable[column].str.split(',', expand=True)
         variable.columns = column_list
         return variable
@@ -93,27 +93,29 @@ class GetIsdData:
             rh_list.append(rh)
         return rh_list
 
-    def extract_data(self, df):
+    def extract_data(self, data):
         """
         Contains instructions based on ISD documentation to extract data into a usable format
         License: https://www.ncdc.noaa.gov/isd/data-access
         Documentation: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
         """
-        # Dropping SYNOP observations to avoid redundancies
-        data = df[df['REPORT_TYPE'].isin(['FM-15', 'FM-16', 'SY-MT'])]
+        # Selecting ONLY METAR observations to avoid redundancies
+        data = data[data['REPORT_TYPE'].isin(['FM-15', 'FM-16', 'SY-MT'])]
 
-
+        # Extracting wind data from WND column
         wind_cols = ['direction', 'quality', 'type_code', 'speed', 'speed_quality']
         wind = self.get_variable(data, 'WND', wind_cols)
 
+        # Extracting visibility data from VIS column
         visibility_cols = ['visibility', 'quality', 'variability', 'quality_variability']
         visibility = self.get_variable(data, 'VIS', visibility_cols)
 
+        # Extracting first two groups of sigwx data from MW1 and MW2 columns
         phenomenon_cols = ['phenomenon', 'quality']
         phenomenon1 = self.get_variable(data, 'MW1', phenomenon_cols)
         phenomenon2 = self.get_variable(data, 'MW2', phenomenon_cols)
-        # phenomenon3 = get_variable(data, 'MW3', phenomenon_cols)
 
+        # Extracting four layers of sky cover from GAx columns
         sky_cover_cols = ['coverage', 'quality', 'base_height', 'base_height_quality', 'cloud_type',
                           'cloud_type_quality']
         sky_cover1 = self.get_variable(data, 'GA1', sky_cover_cols)
@@ -121,43 +123,54 @@ class GetIsdData:
         sky_cover3 = self.get_variable(data, 'GA3', sky_cover_cols)
         sky_cover4 = self.get_variable(data, 'GA4', sky_cover_cols)
 
+        # Extracting Ceiling data from CIG column
         ceiling_cols = ['ceiling', 'quality', 'determination_code', 'cavok']
         ceiling = self.get_variable(data, 'CIG', ceiling_cols)
 
+        # Extracting air temperature data from TMP column
         temperature_cols = ['temperature', 'quality']
         temperature = self.get_variable(data, 'TMP', temperature_cols)
 
+        # Extracting dew point temperature data from DEW column
         dew_cols = ['dew', 'quality']
         dew = self.get_variable(data, 'DEW', dew_cols)
 
-        # Concatenating all data into a base df containing the meteorological variables
-        base_data = pd.concat([data['REM'], wind[['direction', 'speed']].astype(int),
-                               visibility[['visibility']].astype(int),
-                               phenomenon1[['phenomenon']], phenomenon2[['phenomenon']],
-                               sky_cover1[['coverage']], sky_cover2[['coverage']],
-                               sky_cover3[['coverage']], sky_cover4[['coverage']],
-                               ceiling[['ceiling']].astype(int), ceiling[['cavok']],
-                               temperature[['temperature']].fillna(9999).astype(int),
-                               dew[['dew']].fillna(9999).astype(int)], axis=1)
-
         # Note that there were no information on sea level pressure, which will be extracted from REM column
         # Iterating over the METAR messages to extract the slp values
-        metar = base_data['REM']
+        metar = data['REM'].to_list()
         pressure = []
         for code in metar:
             slp = str(re.findall(r"Q\d.+", code))
-            pressure.append(
-                slp[3:7])  # the values were put into the list pressure, which will be appended to the final data frame
+            # the values are put into the list pressure, which will be appended to the final data frame
+            pressure.append(slp[3:7])
 
-        base_data['slp'] = pressure
+        slp = pd.DataFrame(pressure, columns=['slp'])
 
-        base_data.columns = ['REM', 'direction', 'speed', 'visibility',
+        # Concatenating all data into a base df containing the meteorological variables
+        base_data = pd.concat([wind[['direction', 'speed']].astype(int),
+                               visibility[['visibility']].astype(int),
+                               phenomenon1[['phenomenon']].astype(int),
+                               phenomenon2[['phenomenon']].astype(int),
+                               sky_cover1[['coverage', 'base_height']].astype(int),
+                               sky_cover2[['coverage', 'base_height']].astype(int),
+                               sky_cover3[['coverage', 'base_height']].astype(int),
+                               sky_cover4[['coverage', 'base_height']].astype(int),
+                               ceiling[['ceiling']].astype(int),
+                               ceiling[['cavok']],
+                               temperature[['temperature']].astype(int),
+                               dew[['dew']].astype(int),
+                               slp[['slp']]].astype(int),
+                              axis=1)
+
+        base_data.columns = ['direction', 'speed', 'visibility',
                              'phenomenon_1', 'phenomenon_2',
-                             'coverage_1', 'coverage_2', 'coverage_3', 'coverage_4',
+                             'coverage_1', 'base_height_1',
+                             'coverage_2', 'base_height_2',
+                             'coverage_3', 'base_height_3',
+                             'coverage_4', 'base_height_4',
                              'ceiling', 'cavok', 'temperature', 'dew', 'slp']
 
         # Some corrections in the data...
-
         # Wind
         # According with the manual, wind direction as 999 can be missing or variable wind.
         # It can be calm too, as seen by the data (comparing them to METAR)...
@@ -184,11 +197,7 @@ class GetIsdData:
         # According to the manual, ceiling regarded as 99999 means it's missing (from the METAR)
         # and 22000 means unlimited...
         # BUT... "ceiling values above 1600m (5000ft) are not considered ceiling" Lets just make them NaN...
-        base_data['ceiling'] = base_data['ceiling'].astype(int)
         base_data['ceiling'][(base_data['ceiling'] > 1599)] = np.nan
-
-        # Coverage
-        base_data.filter(regex='coverage').fillna(0)
 
         # Temperature
         # The manual says temperature/dew values above 9999 means they are missing...
@@ -204,7 +213,7 @@ class GetIsdData:
         clean = []
         for value in dirty:
             if not value.isdigit():
-                clean.append(9999)
+                clean.append(np.nan)
             else:
                 clean.append(value)
 
@@ -215,11 +224,8 @@ class GetIsdData:
         # They are probably typos as well so let's get rid of them...
         # base_data['slp'][(base_data['slp'] > 1040) | (base_data['slp'] < 960)] = np.nan
 
-
         # Correcting data for standard units
-
         # Wind direction is in degrees, which is fine...
-
         # Wind Speed is in meters per second and scaled by 10, let's downscale them and convert to knots...
         base_data['speed'] = base_data['speed'] * 0.194384
 
@@ -234,31 +240,7 @@ class GetIsdData:
 
         # Pressure is in Hectopascal, which is fine...
 
-        # Broad view of the data
-        # print(base_data.describe())
-
-        # Dropping unused columns
-        base_data = base_data.drop(['REM', 'cavok'], axis=1).round(0)
-        # Create a column for relative humidity
+        # Create a column for relative humidity using a previously defined function
         base_data['rh'] = self.calculate_rh(base_data['temperature'], base_data['dew'])
 
-        # base_data[['direction',
-        #            'speed',
-        #            'visibility',
-        #            'temperature',
-        #            'dew',
-        #            'slp',
-        #            'rh']] = (base_data[['direction',
-        #                                 'speed',
-        #                                 'visibility',
-        #                                 'temperature',
-        #                                 'dew',
-        #                                 'slp',
-        #                                 'rh']].ffill() + base_data[['direction',
-        #                                                             'speed',
-        #                                                             'visibility',
-        #                                                             'temperature',
-        #                                                             'dew',
-        #                                                             'slp',
-        #                                                             'rh']].bfill()) / 2
         return base_data
