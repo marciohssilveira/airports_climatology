@@ -4,7 +4,7 @@ from isd_get_data import GetIsdData
 
 
 # Reading the list of airports given the office code (gr or gl)
-INPUT_DATA_PATH = './src/data/input'
+INPUT_DATA_PATH = './src/data'
 start_year = 2011
 end_year = 2020
 # offices = ['cma_gr', 'cma_gl']
@@ -19,11 +19,11 @@ for office in offices:
     use_stations = isd_stations[isd_stations['ICAO'].isin(airports_list)].sort_values(by='END', ascending=True)#[2:]
 
     # Create the paths and make sure the given paths exist
-    raw_data_path = f'{INPUT_DATA_PATH}/isd/raw/{office}'  # Specify where the raw data will be stored
-    ready_data_path = f'{INPUT_DATA_PATH}/isd/ready/{office}'  # Specify where the extracted data will be stored
+    raw_data_path = f'{INPUT_DATA_PATH}/raw/{office}'  # Specify where the raw data will be stored
+    ready_data_path = f'{INPUT_DATA_PATH}/ready/{office}'  # Specify where the extracted data will be stored
 
-    Path(f'{INPUT_DATA_PATH}/isd/raw/{office}').mkdir(parents=True, exist_ok=True)
-    Path(f'{INPUT_DATA_PATH}/isd/ready/{office}').mkdir(parents=True, exist_ok=True)
+    Path(f'{INPUT_DATA_PATH}/raw/{office}').mkdir(parents=True, exist_ok=True)
+    Path(f'{INPUT_DATA_PATH}/ready/{office}').mkdir(parents=True, exist_ok=True)
 
     # Download data
     # Instantiate the class containing the functions to download and edit files
