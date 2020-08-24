@@ -14,22 +14,21 @@ INPUT_PATH = './src/data/ready'  # Files ready to be used
 OUTPUT_PATH = f'./src/plots'  # Directory where the plots will be stored
 start_year = 2011
 end_year = 2020
-# offices = ['cma_gr', 'cma_gl']
-offices = ['example']
+airports_to_use = ['airports']
 
-for office in offices:
-    office_path = f'{INPUT_PATH}/{office}'
+for station in airports_to_use:
+    station_path = f'{INPUT_PATH}/{station}'
     base_data = {}
-    for file in os.listdir(office_path):
+    for file in os.listdir(station_path):
         # Read the directory with the ready files and store them in a dictionary for future use
         if not file.startswith('.'):
             airport = f'{file.split("_")[0]}'
-            df = pd.read_csv(f'{office_path}/{file}')
+            df = pd.read_csv(f'{station_path}/{file}')
             df.index = pd.to_datetime(df['DATE'])
             base_data[airport] = df
     # Iterate over the base_data dict to get the data and the airport names
     for airport, data in base_data.items():
-        airport_path = f'{OUTPUT_PATH}/{office}/{airport}'
+        airport_path = f'{OUTPUT_PATH}/{station}/{airport}'
         Path(airport_path).mkdir(parents=True, exist_ok=True)
         # Instantiate Climatology Class with the parameters
         plot_climatology = Climatology(airport_path, data, airport, start_year, end_year)

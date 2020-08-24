@@ -7,11 +7,10 @@ from isd_get_data import GetIsdData
 INPUT_DATA_PATH = './src/data'
 start_year = 2011
 end_year = 2020
-# offices = ['cma_gr', 'cma_gl']
-offices = ['example']
+airports_to_use = ['airports']
 
-for office in offices:
-    with open(f'{INPUT_DATA_PATH}/{office}.txt', 'r') as file:
+for station in airports_to_use:
+    with open(f'{INPUT_DATA_PATH}/{station}.txt', 'r') as file:
         airports_list = [x.strip() for x in file.readlines()]
 
     # Matching the given airports with the ISD codes in isd_all_stations.csv
@@ -19,11 +18,11 @@ for office in offices:
     use_stations = isd_stations[isd_stations['ICAO'].isin(airports_list)].sort_values(by='END', ascending=True)#[2:]
 
     # Create the paths and make sure the given paths exist
-    raw_data_path = f'{INPUT_DATA_PATH}/raw/{office}'  # Specify where the raw data will be stored
-    ready_data_path = f'{INPUT_DATA_PATH}/ready/{office}'  # Specify where the extracted data will be stored
+    raw_data_path = f'{INPUT_DATA_PATH}/raw/{station}'  # Specify where the raw data will be stored
+    ready_data_path = f'{INPUT_DATA_PATH}/ready/{station}'  # Specify where the extracted data will be stored
 
-    Path(f'{INPUT_DATA_PATH}/raw/{office}').mkdir(parents=True, exist_ok=True)
-    Path(f'{INPUT_DATA_PATH}/ready/{office}').mkdir(parents=True, exist_ok=True)
+    Path(f'{INPUT_DATA_PATH}/raw/{station}').mkdir(parents=True, exist_ok=True)
+    Path(f'{INPUT_DATA_PATH}/ready/{station}').mkdir(parents=True, exist_ok=True)
 
     # Download data
     # Instantiate the class containing the functions to download and edit files
