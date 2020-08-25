@@ -10,4 +10,6 @@ Part of this code was inspired by this notebook: https://gist.github.com/phobson
 
 ## Usage
 gather_data.py downloads 10 years of data from the airports listed in airports.txt as well as path structure
+
+
 plot.py creates the graphs for the airports as well as the path structure
