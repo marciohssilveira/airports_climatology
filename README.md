@@ -9,7 +9,7 @@ ISD Documentation: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-d
 Part of this code was inspired by this notebook: https://gist.github.com/phobson/41b41bdd157a2bcf6e14
 
 ## Usage
-`gather_data.py` downloads 10 years of data from the airports listed in airports.txt as well as path structure
+`gather_data.py` downloads 10 years of data from the airports listed in `airports.txt` as well as path structure
 
 
-`plot.py creates` the graphs for the airports as well as the path structure
+`plot.py` creates the graphs for the airports as well as the path structure
