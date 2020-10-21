@@ -29,8 +29,7 @@ class Climatology:
         # Then they were put in a dict and then replaced in the rows
         codes = pd.read_csv('data/external/wx_codes.csv', sep=';', index_col=False)
         codes_dict = codes['Phenomenon'].to_dict()
-        phenomena = self.data.filter(like='phenomenon').fillna(0)
-        self.data[phenomena.columns] = phenomena.replace(codes_dict)
+        self.data['phenomenon'] = self.data['phenomenon'].fillna(0).astype(int).map(codes_dict)
         return self.data
 
     def plot_variables_climatology(self):
@@ -101,7 +100,7 @@ class Climatology:
         all_time_windrose_output_path = f'{self.output_path}/rosa dos ventos - total'
         Path(all_time_windrose_output_path).mkdir(parents=True, exist_ok=True)
         filename = f'{all_time_windrose_output_path}/windrose_all_time_' \
-                   f'{self.station_icao}_{self.start_year}-{self.end_year}.png'
+                f'{self.station_icao}_{self.start_year}-{self.end_year}.png'
         if not os.path.exists(filename):
             windrose = WindRose()
             windrose_data = windrose.create_rosedata(self.data)
@@ -128,7 +127,7 @@ class Climatology:
                     plt.suptitle(f'Rosa dos ventos de {self.station_icao} com dados de {self.start_year} a {self.end_year}\n'
                                  f'{month_name.upper()}')
                     plt.savefig(filename)
-            except (ValueError, ZeroDivisionError):
+            except (ValueError, ZeroDivisionError, TypeError):
                 continue
 
     def plot_hourly_windrose(self):

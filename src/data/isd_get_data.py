@@ -50,6 +50,8 @@ class GetIsdData:
         data = self.extract_data(data)
         data.to_csv(f'data/interim/{self.station_icao}_isd_data.csv')
         print('Done')
+        data.index = pd.to_datetime(data.index)
+        return data
 
     def unify_files(self):
         """

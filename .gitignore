@@ -4,3 +4,4 @@ venv
 src/__pycache__/__init__.cpython-38.pyc
 src/data/__pycache__/__init__.cpython-38.pyc
 src/data/__pycache__/isd_get_data.cpython-38.pyc
+src/features/__pycache__/climatology.cpython-38.pyc
