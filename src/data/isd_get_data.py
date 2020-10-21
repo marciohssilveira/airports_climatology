@@ -35,7 +35,8 @@ class GetIsdData:
         print(f'Downloading {self.station_icao} data')
         for year in range(self.start_year, self.end_year, 1):
             url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{station_isd}.csv'
-            filename = f'data/raw/{year}.csv'
+            Path(f'data/raw/{self.station_icao}').mkdir(parents=True, exist_ok=True)
+            filename = f'data/raw/{self.station_icao}/{year}.csv'
             if not os.path.exists(filename):  # Only download if file does not exist
                 try:
                     urllib.request.urlretrieve(url, filename)
@@ -55,12 +56,12 @@ class GetIsdData:
         Takes all the raw downloaded files and unites them into one file
         :return: a dictionary with the airport ICAO as key and dataframes with all the years concatenated as values
         """
-        csv_list = os.listdir(path='data/raw')
+        csv_list = os.listdir(path=f'data/raw/{self.station_icao}')
         grouped = []
         for file in sorted(csv_list):
             # DATE column is used as index
             try:
-                df = pd.read_csv(f'data/raw/{file}',
+                df = pd.read_csv(f'data/raw/{self.station_icao}/{file}',
                                  index_col='DATE',
                                  error_bad_lines=False,
                                  engine="python")
