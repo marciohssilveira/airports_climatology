@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import pandas as pd
 import locale
-from climatology import Climatology
+from features.climatology import Climatology
 import warnings
 
 warnings.filterwarnings('ignore')

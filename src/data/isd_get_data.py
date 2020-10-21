@@ -60,7 +60,7 @@ class GetIsdData:
                                  error_bad_lines=False,
                                  engine="python")
             except (parsers.CParserWrapper, KeyError) as exception:
-                f'{file} data for {self.station} could not be processed: Error {exception.code}'
+                f'{file} data for {self.station_icao} could not be processed: Error {exception.code}'
                 continue
             grouped.append(df)
         data = pd.concat(grouped, sort=False)  # Stores all data data into a dataframe

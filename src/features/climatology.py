@@ -5,7 +5,7 @@ import pandas as pd
 import locale
 import matplotlib.pyplot as plt
 import seaborn as sns
-from my_windrose import WindRose
+from features.my_windrose import WindRose
 import warnings
 
 warnings.filterwarnings('ignore')
