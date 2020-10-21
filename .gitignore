@@ -1,3 +1,6 @@
 venv
 .DS_Store
 .vscode/settings.json
+src/__pycache__/__init__.cpython-38.pyc
+src/data/__pycache__/__init__.cpython-38.pyc
+src/data/__pycache__/isd_get_data.cpython-38.pyc

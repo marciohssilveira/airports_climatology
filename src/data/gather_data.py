@@ -3,6 +3,12 @@ from pathlib import Path
 from isd_get_data import GetIsdData
 
 
+
+
+
+
+
+
 # Reading the list of airports given the office code (gr or gl)
 INPUT_DATA_PATH = './data'
 

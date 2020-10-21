@@ -8,6 +8,7 @@ import re
 import numpy as np
 from pathlib import Path
 import warnings
+import datetime
 
 warnings.filterwarnings('ignore')
 
@@ -19,24 +20,22 @@ class GetIsdData:
     extract information from them
     """
 
-    def __init__(self, data, path):
-        self.station_code = data['CODE'].values[0]  # Code goes into the link to download the files
-        self.station_icao = data['ICAO'].values[0]  # ICAO identifier goes into file name
-        self.path = path
-        self.end_year = int(data['END'].values[0].astype(str)[0:4]) - 1
-        self.start_year = self.end_year - 10
+    def __init__(self, icao):
+        self.station_icao = icao
+        self.end_year = datetime.datetime.today().year - 1
+        self.start_year = datetime.datetime.today().year - 10
 
     def download_isd_data(self):
         """
         Creates the link to download ISD files as well as the directories to put the files
         :return: Organizes the downloaded files into folders
         """
-        Path(f'{self.path}').mkdir(parents=True,
-                                   exist_ok=True)  # Creating a folder for each airport
+        isd_station = pd.read_csv(f'data/external/isd_all_stations.csv', index_col=False)
+        station_isd = isd_station[isd_station['ICAO'] == 'SBGR']['CODE'].values[0]
         print(f'Downloading {self.station_icao} data')
         for year in range(self.start_year, self.end_year, 1):
-            url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{self.station_code}.csv'
-            filename = f'{self.path}/{year}.csv'
+            url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{station_isd}.csv'
+            filename = f'data/raw/{year}.csv'
             if not os.path.exists(filename):  # Only download if file does not exist
                 try:
                     urllib.request.urlretrieve(url, filename)
@@ -44,23 +43,29 @@ class GetIsdData:
                     print(f'Unfortunately there is no {year} data available'
                           f' for {self.station_icao}: Error {exception.code}')
                     continue
+        print('Downloads completeted')
+        data = self.unify_files()
+        print('Extracting data')
+        data = self.extract_data(data)
+        data.to_csv(f'data/interim/{self.station_icao}_isd_data.csv')
+        print('Done')
 
     def unify_files(self):
         """
-        Takes oll the raw downloaded files and unites them into one file
+        Takes all the raw downloaded files and unites them into one file
         :return: a dictionary with the airport ICAO as key and dataframes with all the years concatenated as values
         """
-        csv_list = os.listdir(path=f'{self.path}/')
+        csv_list = os.listdir(path='data/raw')
         grouped = []
         for file in sorted(csv_list):
             # DATE column is used as index
             try:
-                df = pd.read_csv(f'{self.path}/{file}',
+                df = pd.read_csv(f'data/raw/{file}',
                                  index_col='DATE',
                                  error_bad_lines=False,
                                  engine="python")
-            except (parsers.CParserWrapper, KeyError) as exception:
-                f'{file} data for {self.station_icao} could not be processed: Error {exception.code}'
+            except:
+                f'{file} data for {self.station_icao} could not be processed.'
                 continue
             grouped.append(df)
         data = pd.concat(grouped, sort=False)  # Stores all data data into a dataframe
