@@ -1,6 +1,6 @@
-# Brazilian airports climatology
+# Airports Climatology
 
-I used ISD database to gather, process and plot wind roses and other climatological data for some brazilian airports.
+These scripts use ISD database to gather, process airport data and plot wind roses and other climatological features.
 
 ISD License: https://www.ncdc.noaa.gov/isd/data-access
 
@@ -11,7 +11,8 @@ Part of this code was inspired by this notebook: https://gist.github.com/phobson
 ## Usage
 `run.py` downloads 10 years of data from the defined airport and plot graphs containing climatological information.
 
-Here are some examples:
+
+## Examples:
 
 #### Fog occurrence in SBGR
 ![Fog Occurrence in SBGR](https://github.com/marciohssilveira/airports_climatology/blob/master/data/03_img_output/SBGR/fenomenos_significativos/wx_FG_SBGR_2011-2019.png)
