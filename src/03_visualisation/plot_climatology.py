@@ -6,7 +6,7 @@ import locale
 import matplotlib.pyplot as plt
 import seaborn as sns
 from src.features.my_windrose import WindRose
-from src.data.isd_get_data import GetIsdData
+from src.data.get_data_isd import GetIsdData
 import warnings
 import datetime
 
@@ -19,7 +19,7 @@ class Climatology:
     def __init__(self, data, icao):
         self.data = data
         self.station_icao = icao
-        self.output_path = f'data/processed/{self.station_icao}'
+        self.output_path = f'data/03_img_output/{self.station_icao}'
         self.end_year = datetime.datetime.today().year - 1
         self.start_year = datetime.datetime.today().year - 10
 
@@ -27,9 +27,11 @@ class Climatology:
         # Wx
         # A csv file with all phenomenon codes was created using the ISD manual
         # Then they were put in a dict and then replaced in the rows
-        codes = pd.read_csv('data/external/wx_codes.csv', sep=';', index_col=False)
+        codes = pd.read_csv('data/01_raw/wx_codes.csv',
+                            sep=';', index_col=False)
         codes_dict = codes['Phenomenon'].to_dict()
-        self.data['phenomenon'] = self.data['phenomenon'].fillna(0).astype(int).map(codes_dict)
+        self.data['phenomenon'] = self.data['phenomenon'].fillna(
+            0).astype(int).map(codes_dict)
         return self.data
 
     def plot_variables_climatology(self):
@@ -42,7 +44,7 @@ class Climatology:
         # Plot boxplots with the variables
         self.data['month'] = self.data.index.strftime('%b')
 
-        data = self.data[['month', 'visibility', 'ceiling', 
+        data = self.data[['month', 'visibility', 'ceiling',
                           'temperature', 'dew', 'rh', 'slp']]
 
         variables = ['Mês',
@@ -89,23 +91,25 @@ class Climatology:
             plt.yticks(rotation=0)
             ax.set_xlabel('Mês')
             ax.set_ylabel('Hora (UTC)')
-            plt.suptitle(f'Frequência de {wx} em {self.station_icao} com dados de {self.start_year} a {self.end_year}')
-            phenomena_output_path = f'{self.output_path}/fenomenos significativos'
+            plt.suptitle(
+                f'Frequência de {wx} em {self.station_icao} com dados de {self.start_year} a {self.end_year}')
+            phenomena_output_path = f'{self.output_path}/fenomenos_significativos'
             Path(phenomena_output_path).mkdir(parents=True, exist_ok=True)
             filename = f'{phenomena_output_path}/wx_{wx}_{self.station_icao}_2011-2019.png'
             plt.savefig(filename)
 
     def plot_windrose(self):
         # Plot windrose
-        all_time_windrose_output_path = f'{self.output_path}/rosa dos ventos - total'
+        all_time_windrose_output_path = f'{self.output_path}/rosa_dos_ventos_total'
         Path(all_time_windrose_output_path).mkdir(parents=True, exist_ok=True)
         filename = f'{all_time_windrose_output_path}/windrose_all_time_' \
-                f'{self.station_icao}_{self.start_year}-{self.end_year}.png'
+            f'{self.station_icao}_{self.start_year}-{self.end_year}.png'
         if not os.path.exists(filename):
             windrose = WindRose()
             windrose_data = windrose.create_rosedata(self.data)
             windrose.create_windrose(windrose_data)
-            plt.suptitle(f'Rosa dos ventos de {self.station_icao} com dados de {self.start_year} a {self.end_year}')
+            plt.suptitle(
+                f'Rosa dos ventos de {self.station_icao} com dados de {self.start_year} a {self.end_year}')
             plt.savefig(filename)
 
     def plot_monthly_windrose(self):
@@ -116,8 +120,9 @@ class Climatology:
         for month_number, month_name in year.items():
             data = self.data[self.data.index.month.isin([month_number])]
             try:
-                monthly_windrose_output_path = f'{self.output_path}/rosa dos ventos - mensal'
-                Path(monthly_windrose_output_path).mkdir(parents=True, exist_ok=True)
+                monthly_windrose_output_path = f'{self.output_path}/rosa_dos_ventos_mensal'
+                Path(monthly_windrose_output_path).mkdir(
+                    parents=True, exist_ok=True)
                 filename = f'{monthly_windrose_output_path}/windrose_monthly_{month_number:02}_{month_name}_' \
                            f'{self.station_icao}_{self.start_year}-{self.end_year}.png'
                 if not os.path.exists(filename):
@@ -134,8 +139,9 @@ class Climatology:
         for hour in range(0, 24, 1):
             data = self.data[self.data.index.hour.isin([hour])]
             try:
-                hourly_windrose_output_path = f'{self.output_path}/rosa dos ventos - horaria'
-                Path(hourly_windrose_output_path).mkdir(parents=True, exist_ok=True)
+                hourly_windrose_output_path = f'{self.output_path}/rosa_dos_ventos_horaria'
+                Path(hourly_windrose_output_path).mkdir(
+                    parents=True, exist_ok=True)
                 filename = f'{hourly_windrose_output_path}/windrose_hourly_{hour:02}00UTC_' \
                            f'{self.station_icao}_{self.start_year}-{self.end_year}.png'
                 if not os.path.exists(filename):
