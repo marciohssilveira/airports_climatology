@@ -14,3 +14,4 @@ src/01_data/__pycache__/isd_get_data.cpython-38.pyc
 src/02_processing/__pycache__/__init__.cpython-38.pyc
 src/02_processing/__pycache__/climatology.cpython-38.pyc
 src/02_processing/__pycache__/my_windrose.cpython-38.pyc
+__pycache__
