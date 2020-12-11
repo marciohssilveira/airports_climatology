@@ -7,11 +7,13 @@ from d01_data.get_data import GetIsdData
 from d03_visualisation.plot_climatology import Climatology
 import pandas as pd
 
-sbgr = GetIsdData('SBGR')
-data = sbgr.download_isd_data()
 
-climatology = Climatology(data, 'SBGR')
+airport = 'SBGR'
 
+
+data = GetIsdData(airport).download_isd_data()
+
+climatology = Climatology(data, airport)
 climatology.plot_variables_climatology()
 # Plot wx
 climatology.plot_wx()

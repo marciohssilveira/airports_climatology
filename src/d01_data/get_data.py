@@ -20,8 +20,8 @@ class GetIsdData:
 
     def __init__(self, icao):
         self.station_icao = icao
-        self.end_year = datetime.datetime.today().year - 1
-        self.start_year = datetime.datetime.today().year - 10
+        self.end_year = datetime.datetime.today().year
+        self.start_year = datetime.datetime.today().year - 11
 
     def download_isd_data(self):
         """
@@ -31,7 +31,7 @@ class GetIsdData:
         isd_station = pd.read_csv(
             'data/01_raw/isd_all_stations.csv', index_col=False)
         station_isd = isd_station[isd_station['ICAO']
-                                  == 'SBGR']['CODE'].values[0]
+                                  == self.station_icao]['CODE'].values[0]
         print(f'Downloading {self.station_icao} data...')
         for year in range(self.start_year, self.end_year, 1):
             url = f'https://www.ncei.noaa.gov/data/global-hourly/access/{year}/{station_isd}.csv'
